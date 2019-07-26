@@ -83,11 +83,23 @@
             <groupId>com.tencent.angel</groupId>
             <artifactId>angel-ps-core</artifactId>
             <version>${angel.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.tencent.angel</groupId>
             <artifactId>angel-ps-psf</artifactId>
             <version>${angel.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
