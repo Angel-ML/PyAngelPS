@@ -40,7 +40,6 @@ class Tensor(name: String, dim: Int, shape: Array[Long], dtype: String, validInd
     } else {
       matClient.getRows(rowIds, true)
     }
-    logger.info("pulled dopull: "+pulled.map(_.std()).mkString(":"))
 
     Utils.vectorArray2Matrix(pulled)
   }

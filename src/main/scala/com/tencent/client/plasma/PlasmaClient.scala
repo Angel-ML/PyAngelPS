@@ -96,8 +96,6 @@ class PlasmaClient private(storeSocketName: String, managerSocketName: String, r
   }
 
   def getBuffer(objectId: Array[Byte], timeoutMs: Int): ByteBuffer = {
-    logger.info("library:"+System.getProperty("java.library.path"))
-    logger.info("ld library:"+System.getenv("LD_LIBRARY_PATH"))
     val bufs = PlasmaClientJNI.get(conn, Array[Array[Byte]](objectId), timeoutMs)
     assert(bufs.length == 1)
 

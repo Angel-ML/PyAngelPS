@@ -131,8 +131,6 @@ class Task(masterStub: MStub, workerInfo: WorkerInfo, val isChief: Boolean) {
   }
 
   def get(matId: Int): TensorLike = {
-    logger.info("matid:"+ matId)
-    tsMap.values.foreach(ts => logger.info("get Matid:"+ts.getMatClient.getMatrixId))
     val tensor = tsMap.values.collectFirst { case ts: Tensor if ts.getMatClient.getMatrixId == matId => ts }
     if (tensor.nonEmpty) {
       tensor.get

@@ -127,7 +127,6 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
 
       val matId = tensor.getMatClient.getMatrixId
       tensor.getMeta.getMatrixContext.setMatrixId(matId)
-      logger.info("return matId:"+ matId)
       val createResp = CreateResp.newBuilder()
         .setTaskId(task.taskId)
         .setMatId(matId)
@@ -326,7 +325,6 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
       } else {
         if (!plasma.contains(resObjId)) {
           val pulled = tsLike.pull(epoch, null)
-          logger.info("pulled data max: " + pulled.max())
           plasma.put(resObjId, pulled, tsLike.getMeta)
         }
       }
@@ -370,7 +368,6 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
       task.batchSize = batchSize
       val tsLike = task.get(matId)
       val grad = plasma.getMatrix(objectId, tsLike.getMeta, 30000)
-      logger.info("grad :" + grad.max())
       tsLike.push(grad, 1.0)
 
       val resp = VoidResp.newBuilder().build()
