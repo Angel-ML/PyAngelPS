@@ -82,10 +82,10 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
       val isChief = taskMap.size() == 0 && workerInfo.isChief
       val taskTemp = new Task(masterStub, workerInfo, isChief)
 
-      taskMap.put(taskId, taskTemp)
       logger.info("begin to register task to Client Master")
       taskTemp.register()
       logger.info(s"task info: {taskId: ${taskTemp.taskId}, isChief: $isChief}")
+      taskMap.put(taskTemp.taskId, taskTemp)
       taskTemp
     } else {
       taskMap.get(taskId)
@@ -126,6 +126,8 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
       task.put(request.getName, tensor)
 
       val matId = tensor.getMatClient.getMatrixId
+      tensor.getMeta.getMatrixContext.setMatrixId(matId)
+      logger.info("return matId:"+ matId)
       val createResp = CreateResp.newBuilder()
         .setTaskId(task.taskId)
         .setMatId(matId)
@@ -314,15 +316,17 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
 
       val objectId = request.getObjectId
       val resObjId = PlasmaClient.getObjectId(matId, epoch, batch)
-      if (objectId != null) {
+      if (objectId.size() != 0) {
         val byteBuf = plasma.getBuffer(objectId.toByteArray, 3000)
         val dataHead = DataHead.fromBuffer(byteBuf)
+        logger.info(dataHead.denseDim +","+dataHead.dtype+","+dataHead.length)
         val indices = Deserializer.indicesFromBuffer(byteBuf, dataHead, tsLike.getMeta)
         val pulled = tsLike.pull(epoch, Utils.vector2Matrix(indices))
         plasma.put(resObjId, pulled, tsLike.getMeta)
       } else {
         if (!plasma.contains(resObjId)) {
           val pulled = tsLike.pull(epoch, null)
+          logger.info("pulled data max: " + pulled.max())
           plasma.put(resObjId, pulled, tsLike.getMeta)
         }
       }
@@ -366,6 +370,7 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
       task.batchSize = batchSize
       val tsLike = task.get(matId)
       val grad = plasma.getMatrix(objectId, tsLike.getMeta, 30000)
+      logger.info("grad :" + grad.max())
       tsLike.push(grad, 1.0)
 
       val resp = VoidResp.newBuilder().build()

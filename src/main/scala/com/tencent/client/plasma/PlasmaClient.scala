@@ -13,13 +13,14 @@ import com.tencent.angel.ml.math2.matrix._
 import com.tencent.angel.ml.math2.utils.LabeledData
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.util.ShutdownHookManager
-
+import org.apache.arrow.plasma.PlasmaClientJNI
 import scala.collection.JavaConversions._
 
 
 class PlasmaClient private(storeSocketName: String, managerSocketName: String, releaseDelay: Int) {
   private lazy val conn = PlasmaClientJNI.connect(storeSocketName, managerSocketName, releaseDelay)
 
+  private val logger = Logger.getLogger(classOf[PlasmaClient].getSimpleName)
   @throws[DuplicateObjectException]
   @throws[PlasmaOutOfMemoryException]
   def put(objectId: Array[Byte], buf: ByteBuffer): Unit = {
@@ -95,6 +96,8 @@ class PlasmaClient private(storeSocketName: String, managerSocketName: String, r
   }
 
   def getBuffer(objectId: Array[Byte], timeoutMs: Int): ByteBuffer = {
+    logger.info("library:"+System.getProperty("java.library.path"))
+    logger.info("ld library:"+System.getenv("LD_LIBRARY_PATH"))
     val bufs = PlasmaClientJNI.get(conn, Array[Array[Byte]](objectId), timeoutMs)
     assert(bufs.length == 1)
 
@@ -164,7 +167,7 @@ object PlasmaClient {
 
     while (i < 5 && !flag) { // retry
       val currentPort: Int = ThreadLocalRandom.current.nextInt(0, 10000)
-      plasmaName = s"$storeSuffix$currentPort"
+      plasmaName = s"$storeSuffix" //$currentPort"
       val cmd: String = s"$plasmaStorePath -m $memoryBytes -s $plasmaName"
       logger.info(cmd)
       val builder = new ProcessBuilder(cmd.split(" ").toList)

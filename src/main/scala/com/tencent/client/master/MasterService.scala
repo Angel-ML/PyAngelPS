@@ -84,7 +84,9 @@ class MasterService(val numTask: Int, val syncModel: AsyncModel, val conf: util.
   override def registerTask(request: RegisterTaskReq, responseObserver: StreamObserver[RegisterTaskResp]): Unit = synchronized {
     try {
       val workId = request.getWorkId
+      logger.info("begin check work id" + workId)
       assert(activeWorker.containsKey(workId))
+      logger.info("end check work id")
 
       val taskId: Long = nextTaskId.getAndIncrement()
       taskInWorker.put(taskId, workId)
