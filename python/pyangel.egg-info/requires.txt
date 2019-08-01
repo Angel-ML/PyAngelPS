@@ -1,0 +1,6 @@
+grpcio>=1.16.1
+grpclib>=0.2.5
+numpy>=1.16.4
+protobuf>=3.8.0
+pyarrow>=0.14.1
+scipy>=1.2.1
