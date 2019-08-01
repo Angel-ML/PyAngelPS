@@ -6,8 +6,8 @@ import abc
 import grpclib.const
 import grpclib.client
 
-import common_pb2
-import client_worker_pb2
+from . import common_pb2
+from . import client_worker_pb2
 
 
 class ClientWorkerBase(abc.ABC):
