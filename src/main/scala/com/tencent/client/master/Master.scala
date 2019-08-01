@@ -3,11 +3,14 @@ package com.tencent.client.master
 import io.grpc.ServerBuilder
 import java.io.IOException
 import java.util
+import java.util.concurrent.Executors
 import java.util.logging.Logger
 
 import com.tencent.client.common.protos.AsyncModel
-import scala.collection.JavaConversions._
+import org.apache.hadoop.conf.{Configurable, Configuration}
 
+import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 
 class Master(val port: Int, val numTask: Int, val syncModel: AsyncModel, val conf: util.Map[String, String]) {
@@ -42,6 +45,7 @@ class Master(val port: Int, val numTask: Int, val syncModel: AsyncModel, val con
 
 object Master {
   private val logger = Logger.getLogger(Master.getClass.getSimpleName)
+  private var server: Master = _
 
   def main(args: Array[String]): Unit = {
     val conf = Map(
@@ -59,16 +63,68 @@ object Master {
       "angel.ps.total.cores" -> "1",
       "angel.ps.cpu.vcores" -> "1",
       "angel.ps.log.level" -> "DEBUG",
-      "angel.log.path" -> "file:///home/uuirs/dev/sona/log",
-      "angel.save.model.path" -> "file:///home/uuirs/dev/sona/model",
-      "plasma.store.path" -> "/home/uuirs/anaconda3/envs/plasma_java/bin/plasma_store_server",
+      "angel.log.path" -> "file:///home/fitz/dev/sona/log",
+      "angel.save.model.path" -> "file:///home/fitz/dev/sona/model",
+      "plasma.store.path" -> "/home/fitz/working/arrow/plasma_store_server",
       "plasma.store.suffix" -> "/tmp/plasma",
       "plasma.store.memoryGB" -> "1",
       "python.script.name" -> "test.py"
     )
 
-    val server = new Master(8980, 5, AsyncModel.BSP, conf)
-    server.start()
-    server.blockUntilShutdown()
+    start(8980, 5, AsyncModel.BSP, conf)
+  }
+
+  def embedStart(port: Int, numTask: Int, asyncModel: AsyncModel, conf: Map[String, String]): Unit = synchronized {
+    if (server == null) {
+      Executors.newSingleThreadExecutor().execute(new Runnable {
+        override def run(): Unit = {
+          start(port, numTask, asyncModel, conf)
+        }
+      })
+    }
+  }
+
+  def embedStart(port: Int, numTask: Int, asyncModel: AsyncModel, conf: Configuration): Unit = synchronized {
+    val iter =  conf.iterator()
+    val confMap = new mutable.HashMap[String, String]()
+    while (iter.hasNext) {
+      val entry = iter.next()
+      val key = entry.getKey
+      if (key.contains("angel.") || key.contains("plasma.") ||
+        key.contains("python.") || key.contains("ml.")) {
+        confMap.put(key, entry.getValue)
+      }
+    }
+
+    if (server == null) {
+      Executors.newSingleThreadExecutor().execute(new Runnable {
+        override def run(): Unit = {
+          start(port, numTask, asyncModel, confMap.toMap)
+        }
+      })
+    }
+  }
+
+  def embedStop(): Unit = synchronized {
+    if (server != null) {
+      server.stop()
+    }
+  }
+
+  private def start(port: Int, numTask: Int, asyncModel: AsyncModel, conf: Map[String, String]): Unit = {
+    try {
+      server = new Master(port, numTask, asyncModel, conf)
+      server.start()
+      server.blockUntilShutdown()
+    } catch {
+      case e: Exception =>
+        e.printStackTrace()
+        throw e
+    } finally {
+      if (server != null) {
+        server.stop()
+      }
+    }
+
   }
 }

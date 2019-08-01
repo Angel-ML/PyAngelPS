@@ -9,8 +9,5 @@
         <module name="PyAngelPS" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="PyAngelPS" target="8" />
-    </bytecodeTargetLevel>
   </component>
 </project>

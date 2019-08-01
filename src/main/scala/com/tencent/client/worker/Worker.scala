@@ -1,6 +1,7 @@
 package com.tencent.client.worker.protos
 
 import java.io.IOException
+import java.util.concurrent.Executors
 import java.util.logging.Logger
 
 import com.tencent.client.worker.WorkerService
@@ -38,15 +39,41 @@ class Worker(val masterHost: String, val masterPort: Int, val workerPost: Int) {
 
 object Worker {
   private val logger = Logger.getLogger(Worker.getClass.getSimpleName)
+  private var server: Worker = _
+
+  def embedStart(masterHost: String, masterPort: Int, workerPort: Int): Unit = synchronized {
+    if (server == null) {
+      Executors.newSingleThreadExecutor().execute(new Runnable {
+        override def run(): Unit = {
+          start(masterHost, masterPort, workerPort)
+        }
+      })
+    }
+  }
+
+  def embedStop(): Unit = synchronized {
+    if (server != null) {
+      server.stop()
+    }
+  }
 
   def main(args: Array[String]): Unit = {
+    start("localhost", 8980, 9005)
+  }
+
+  private def start(masterHost: String, masterPort: Int, workerPort: Int): Unit = {
     try {
-      val server = new Worker("localhost",8980, 9005)
+      server = new Worker(masterHost, masterPort, workerPort)
       server.start()
       server.blockUntilShutdown()
     } catch {
       case e: Exception =>
         e.printStackTrace()
+        throw e
+    } finally {
+      if (server != null) {
+        server.stop()
+      }
     }
   }
 }
