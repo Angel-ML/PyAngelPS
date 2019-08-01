@@ -1,6 +1,6 @@
 *.class
 *.log
-PyAngelPS.iml
-.idea
+*.iml
+.idea/
 target
-
+__pycache__/
