@@ -76,7 +76,7 @@ class MasterService(val numTask: Int, val syncModel: AsyncModel, val conf: util.
         logger.warning(e.getMessage)
         responseObserver.onError(e)
       case ae: AssertionError =>
-        logger.warning(ae.getMessage)
+        ae.printStackTrace()
         responseObserver.onError(ae)
     }
   }

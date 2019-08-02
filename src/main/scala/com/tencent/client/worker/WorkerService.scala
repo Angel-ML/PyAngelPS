@@ -76,6 +76,11 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
   private val memoryGB = workerInfo.conf.get(PlasmaClient.Plasma_Store_MemoryGB).toInt
   PlasmaClient.startObjectStore(plasmaCmd, suffix, memoryGB)
 
+  private val pyUserScript = workerInfo.conf.get(PythonDaemon.Python_Script_Name)
+  private val pyExec = workerInfo.conf.get(PythonDaemon.Python_Exec_Path)
+
+  PythonDaemon.startDaemon(pyExec, 9005, pyUserScript, PlasmaClient.plasmaName)
+
 
   private def getTask(taskId: Long) = {
     if (!taskMap.containsKey(taskId)) {
@@ -378,6 +383,7 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
         logger.warning(e.getMessage)
         responseObserver.onError(e)
       case ae: AssertionError =>
+        ae.printStackTrace()
         logger.warning(ae.getMessage)
         responseObserver.onError(ae)
     } finally {

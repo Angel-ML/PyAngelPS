@@ -129,10 +129,10 @@ object PlasmaClient {
   val Plasma_Store_Path = "plasma.store.path"
   val Plasma_Store_Suffix = "plasma.store.suffix"
   val Plasma_Store_MemoryGB = "plasma.store.memoryGB"
+  var plasmaName: String = _
 
   private val rand = new Random()
   private var storeProcess: Process = _
-  private var plasmaName: String = _
   private val clientPool = new ConcurrentLinkedQueue[PlasmaClient]()
 
   private val shutdownHookManager = ShutdownHookManager.get()

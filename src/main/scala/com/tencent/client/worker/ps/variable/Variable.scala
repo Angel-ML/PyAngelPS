@@ -62,6 +62,7 @@ class Variable(name: String, dim: Int, shape: Array[Long], dtype: String, validI
   protected def doPush(grad: Matrix, alpha: Double): Unit = {
     val matrixId = matClient.getMatrixId
     val originRows = meta.getMatrixContext.getRowNum / (meta.numSlot + 1)
+    println("debug: "+grad.getNumRows+ " " +originRows + " "+ meta.getMatrixContext.getRowNum)
     assert(grad.getNumRows == originRows)
 
     grad match {

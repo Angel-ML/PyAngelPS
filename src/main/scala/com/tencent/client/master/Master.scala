@@ -64,7 +64,8 @@ object Master {
       "plasma.store.path" -> "/home/uuirs/anaconda3/envs/plasma_java/bin/plasma_store_server",
       "plasma.store.suffix" -> "/tmp/plasma",
       "plasma.store.memoryGB" -> "1",
-      "python.script.name" -> "test.py"
+      "python.script.name" -> "test.py",
+      "python.exec.path" -> "/home/uuirs/anaconda3/envs/tf/bin/python"
     )
 
     val server = new Master(8980, 5, AsyncModel.BSP, conf)

@@ -4,17 +4,24 @@ import java.io.DataOutputStream
 import java.util.logging.Logger
 
 import scala.sys.process._
-class PythonDaemon {
+import scala.concurrent._
+import scala.io._
+import java.io._
+
+class PythonDamon {
 
 }
 
 object PythonDaemon {
 
+  val Python_Script_Name = "python.script.name"
+  val Python_Exec_Path = "python.exec.path"
+
   private val logger = Logger.getLogger(PythonDaemon.getClass.getSimpleName)
 
   private var storeProcess: Process = _
 
-  private var procOutput:
+  private var procOutput = new SyncVar[OutputStream]
 
   private val daemonModule = "pyangel.daemon"
 
@@ -26,13 +33,18 @@ object PythonDaemon {
       "user_script"->userScriptPath,
       "plasma_name"->plasmaName
     )
-    
+
     val procIO = new ProcessIO(
       in => {
-        procOutput = new scala.io.Source.(in)
+        procOutput.put(in)
       },
-      _.close(),
-      _.close()
+      out => {
+        scala.io.Source.fromInputStream(out).getLines().foreach(logger.info(_))
+      },
+      err => {
+        scala.io.Source.fromInputStream(err).getLines().foreach(logger.info(_))
+      },
+      true
     )
 
     storeProcess = Process(Seq(pythonExec, "-m", daemonModule), None, envVars.toSeq: _*).run(procIO)
@@ -40,7 +52,18 @@ object PythonDaemon {
   }
 
   def createPythonProcess(): Unit ={
+    procOutput.get.write("\n".getBytes)
+    procOutput.get.flush()
+    println("write finish")
+  }
 
-    procOutput
+  def main(args: Array[String]): Unit = {
+    startDaemon("/home/uuirs/anaconda3/envs/tf/bin/python",
+      9005, "/home/uuirs/dev/python_test/demo.py", "plasma_name" )
+    println("start finish")
+    createPythonProcess()
+    createPythonProcess()
+    Thread.sleep(1000)
+    createPythonProcess()
   }
 }

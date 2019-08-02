@@ -68,9 +68,9 @@ class AngelPs:
 
     def create_variable(self, key, shape, dtype, init_params=None, updater_params=None):
 
-        res = asyncio.get_event_loop().run_until_complete(
+        res = asyncio.run_coroutine_threadsafe(
             self.client_worker.CreateVariable(RPCVariable(taskId=self.task_id, name=key, dim=len(shape), shape=shape,
-                                                          dtype=_DTYPE_NP_TO_PROTO[dtype])))
+                                                          dtype=_DTYPE_NP_TO_PROTO[dtype])), self._loop).result()
         if self.task_id == -1:
             self.task_id = res.taskId
         self.key_matid[key] = res.matId
@@ -78,10 +78,10 @@ class AngelPs:
 
     def create_embedding(self, key, num_feats, embedding_size, dtype, init_params=None, updater_params=None):
 
-        res = asyncio.get_event_loop().run_until_complete(
+        res = asyncio.run_coroutine_threadsafe(
             self.client_worker.CreateEmbedding(RPCEmbedding(taskId=self.task_id, name=key, numFeats=num_feats,
                                                             embeddingSize=embedding_size,
-                                                            dtype=_DTYPE_NP_TO_PROTO[dtype])))
+                                                            dtype=_DTYPE_NP_TO_PROTO[dtype])), self._loop).result()
         if self.task_id == -1:
             self.task_id = res.taskId
         self.key_matid[key] = res.matId
