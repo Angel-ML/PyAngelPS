@@ -23,7 +23,10 @@ class Variable(name: String, dim: Int, shape: Array[Long], dtype: String, validI
   override def getMeta: VariableMeta = meta
 
   protected def doPull(epoch: Int, idxs: Matrix): Matrix = {
-    val indices = idxs.getRow(0)
+    var indices: Vector = null
+    if (idxs != null) {
+      indices = idxs.getRow(0)
+    }
     val originRows = meta.getMatrixContext.getRowNum / (meta.numSlot + 1)
     val rowIds = (0 until originRows).toArray
 
@@ -52,7 +55,7 @@ class Variable(name: String, dim: Int, shape: Array[Long], dtype: String, validI
             matClient.get(rowIds, v.getIndices)
         }
       } else {
-        matClient.getRows(rowIds)
+        matClient.getRows(rowIds, true)
       }
     }
 
@@ -62,7 +65,6 @@ class Variable(name: String, dim: Int, shape: Array[Long], dtype: String, validI
   protected def doPush(grad: Matrix, alpha: Double): Unit = {
     val matrixId = matClient.getMatrixId
     val originRows = meta.getMatrixContext.getRowNum / (meta.numSlot + 1)
-    println("debug: "+grad.getNumRows+ " " +originRows + " "+ meta.getMatrixContext.getRowNum)
     assert(grad.getNumRows == originRows)
 
     grad match {

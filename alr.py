@@ -13,7 +13,7 @@ from torch.optim.optimizer import Optimizer, required
 os.environ['jvm_port']='9005'
 os.environ['plasma_name']='/tmp/plasma'
 ps = angelps.AngelPs()
-ps.batch_size = 1
+ps.batch_size = 32
 #hhh = {}
 hhh_key = {}
 param_id = 0
@@ -52,9 +52,7 @@ class SGD(Optimizer):
                 d_p = p.grad.data
                 #print(p.data)
                 key = hhh_key[p]
-                print(d_p.numpy().dtype)
-                print(p.data.numpy().dtype)
-                ps.push([key], [d_p.numpy().astype(np.float64)])
+                ps.push([key], [d_p.numpy()])
 
                 #p.data = torch.from_numpy(np.ones_like(p.data.numpy()))
                 #new_data = p.data.clone().detach()
@@ -62,10 +60,12 @@ class SGD(Optimizer):
                 #hhh[p]=new_data
                 #p.data.add_(-group['lr'], d_p)
                 #print(p.data)
+        ps.batch += 1
+        ps.update()
 
-            return loss
+        return loss
 
-batch_size = 100
+batch_size = 32
 n_iters = 3000
 input_dim = 784
 output_dim = 10
@@ -105,7 +105,7 @@ for param in model.parameters():
     key = str(param_id)
     hhh_key[param] = str(param_id)
     param_id += 1
-    ps.create_variable(key, param.data.numpy().shape, np.float)
+    ps.create_variable(key, param.data.numpy().shape, param.data.numpy().dtype, updater_params = {'name':'Momentum','lr':'0.001'})
 ps.init()
 
 print(ps.key_matid.items())
@@ -124,7 +124,7 @@ for epoch in range(int(epochs)):
         optimizer.step()
 
         iter_num+=1
-        if iter_num%500==0:
+        if iter_num%50==0:
             # calculate Accuracy
             correct = 0
             total = 0
@@ -136,4 +136,5 @@ for epoch in range(int(epochs)):
                 # for gpu, bring the predicted and labels back to cpu fro python operations to work
                 correct+= (predicted == labels).sum()
             accuracy = 100 * correct/total
-            print("Iteration: {}. Loss: {}. Accuracy: {}.".format(iter, loss.item(), accuracy))
+            print("Iteration: {}. Loss: {}. Accuracy: {}.".format(iter_num, loss.item(), accuracy))
+ps.close()

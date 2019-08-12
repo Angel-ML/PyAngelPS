@@ -60,6 +60,7 @@ class DataHead:
 
         self.data = None
         self.buffer = None
+        self.update = False
 
     @property
     def shape(self):
@@ -69,7 +70,8 @@ class DataHead:
     def nbytes(self):
         return self.length + DataHeadLen
 
-    def from_buffer(self, buffer):
+    def from_buffer(self, buffer, update):
+        self.update = update
         offset = 0
         self.sparse_dim = read_int(buffer[offset:offset+4])
         offset += 4
@@ -88,8 +90,11 @@ class DataHead:
 
         self.buffer = buffer
 
-    def from_data(self, data):
+    def from_data(self, data, update):
+        self.update = update
         if isinstance(data, np.ndarray):
+            if self.update is True and len(data.shape) == 1:
+                data = data.reshape(1, *data.shape)
             self.sparse_dim = -1
             self.dense_dim = len(data.shape)
             self.raw_shape = list(data.shape)
@@ -98,6 +103,8 @@ class DataHead:
             self.nnz = data.size
             self.raw_dtype = _DTYPE_NP_TO_JVM[data.dtype]
             self.length = data.data.nbytes
+
+            self.data = data
 
         elif isinstance(data, tuple):
             self.sparse_dim = 1
@@ -176,10 +183,15 @@ class DataHead:
         else:
             raise Exception('from wrong buffer')
 
-    def parse_data(self, buffer):
+    def parse_data(self, buffer=None):
+        if buffer is None:
+            buffer = self.buffer
         buffer = buffer[DataHeadLen:]
         if self.sparse_dim < 0:
-            return np.frombuffer(buffer, dtype=_DTYPE_JVM_TO_NP[self.raw_dtype]).reshape(self.shape)
+            if self.update is True and self.shape[0] == 1:
+                return np.frombuffer(buffer, dtype=_DTYPE_JVM_TO_NP[self.raw_dtype]).reshape(self.shape[1:])
+            else:
+                return np.frombuffer(buffer, dtype=_DTYPE_JVM_TO_NP[self.raw_dtype]).reshape(self.shape)
         elif self.sparse_dim == 1 and self.dense_dim == -1:
             indices = np.frombuffer(buffer, dtype=_DTYPE_JVM_TO_NP[self.raw_dtype]).reshape(self.nnz)
             values = np.ones((self.nnz,), dtype= _DTYPE_JVM_TO_NP[self.raw_dtype])

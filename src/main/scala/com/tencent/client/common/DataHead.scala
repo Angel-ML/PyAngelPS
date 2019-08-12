@@ -79,7 +79,6 @@ object DataHead {
 
     buf.position(start + headLen)
     buf.order(oldOrder)
-    println(sparseDim,denseDim,shape,nnz,dtype,length)
     new DataHead(sparseDim, denseDim, shape, nnz, dtype, length)
   }
 }

@@ -35,7 +35,6 @@ object Deserializer {
 
   def matrixFromBuffer(buf: ByteBuffer, meta: Meta): Matrix = {
     val dataHead = DataHead.fromBuffer(buf)
-    println(dataHead.denseDim, dataHead.dtype, dataHead.length, dataHead.shape)
     if (dataHead.shape.length >= 2) {
       assert(util.Arrays.equals(meta.shape, dataHead.shape))
       assert(checkValueType(dataHead, meta))
@@ -263,8 +262,8 @@ object Deserializer {
 
     val matrixId = meta.getMatrixContext.getMatrixId
 
-    val rows = dataHead.shape(0).toInt
-    val cols = dataHead.nnz / dataHead.shape(0).toInt
+    val rows = 1
+    val cols = dataHead.nnz
 
     val oldOrder = buf.order()
     buf.order(ByteOrder.LITTLE_ENDIAN)
@@ -305,7 +304,6 @@ object Deserializer {
         throw new Exception("sparseDim or denseDim is invalidate!")
       }
     } else {
-      println(dataHead.shape.length)
       null
     }
   }

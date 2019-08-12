@@ -68,7 +68,7 @@ object Master {
       "python.exec.path" -> "/home/uuirs/anaconda3/envs/tf/bin/python"
     )
 
-    val server = new Master(8980, 5, AsyncModel.BSP, conf)
+    val server = new Master(8980, 1, AsyncModel.BSP, conf)
     server.start()
     server.blockUntilShutdown()
   }

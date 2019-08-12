@@ -345,6 +345,7 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
     } catch {
       case e: Exception =>
         logger.warning(e.getMessage)
+        e.printStackTrace()
         responseObserver.onError(e)
       case ae: AssertionError =>
         logger.warning(ae.getMessage)
@@ -437,6 +438,7 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
     } catch {
       case e: Exception =>
         logger.warning(e.getMessage)
+        e.printStackTrace()
         responseObserver.onError(e)
       case ae: AssertionError =>
         logger.warning(ae.getMessage)

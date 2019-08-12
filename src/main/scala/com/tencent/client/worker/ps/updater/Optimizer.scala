@@ -83,6 +83,7 @@ object Optimizer {
 
     opt.setRegL1Param(getD("regL1Param", 0.0))
     opt.setRegL2Param(getD("regL2Param", 0.0))
+    println(params.mkString(","))
 
     opt
   }

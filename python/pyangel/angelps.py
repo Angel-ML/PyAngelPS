@@ -67,10 +67,19 @@ class AngelPs:
         self.keys.add(key)
 
     def create_variable(self, key, shape, dtype, init_params=None, updater_params=None):
+        print('create variable:' + str(dtype) + ' '+ str(_DTYPE_NP_TO_PROTO[dtype]))
+        if len(shape) == 1:
+            shape = (1, *shape)
+        if init_params is None:
+            init_params = {}
+        if updater_params is None:
+            updater_params = {}
 
         res = asyncio.run_coroutine_threadsafe(
             self.client_worker.CreateVariable(RPCVariable(taskId=self.task_id, name=key, dim=len(shape), shape=shape,
-                                                          dtype=_DTYPE_NP_TO_PROTO[dtype])), self._loop).result()
+                                                          dtype=_DTYPE_NP_TO_PROTO[dtype],
+                                                          initializerParams=init_params,
+                                                          updaterParams=updater_params)), self._loop).result()
         if self.task_id == -1:
             self.task_id = res.taskId
         self.key_matid[key] = res.matId
@@ -109,7 +118,6 @@ class AngelPs:
                 self.key_objectid[key] = object_id
                 self.key_grad[key] = value
         asyncio.run_coroutine_threadsafe(async_map(self.apush, keys), self._loop).result()
-        self.batch += 1
 
     def load(self, keys, pathes):
         asyncio.run_coroutine_threadsafe(async_map(self.aload, zip(keys,pathes))).result()
@@ -130,7 +138,7 @@ class AngelPs:
 
         object_id = res.objectId
 
-        data = await self.data_store.aget(object_id)
+        data = await self.data_store.aget(object_id, update=True)
 
         self.key_param[key] = data
 
@@ -138,7 +146,7 @@ class AngelPs:
         object_id = self.key_objectid[key]
         data = self.key_grad[key]
 
-        await self.data_store.aset(object_id, data)
+        await self.data_store.aset(object_id, data, update=True)
 
         await self.client_worker.Push(
             PushRequest(taskId=self.task_id, matId=self.key_matid[key], epoch=self.epoch, batch=self.batch,

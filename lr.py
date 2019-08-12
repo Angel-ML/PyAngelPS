@@ -100,7 +100,7 @@ for epoch in range(int(epochs)):
         optimizer.step()
 
         iter_num+=1
-        if iter_num%500==0:
+        if iter_num%50==0:
             # calculate Accuracy
             correct = 0
             total = 0
@@ -112,4 +112,4 @@ for epoch in range(int(epochs)):
                 # for gpu, bring the predicted and labels back to cpu fro python operations to work
                 correct+= (predicted == labels).sum()
             accuracy = 100 * correct/total
-            print("Iteration: {}. Loss: {}. Accuracy: {}.".format(iter, loss.item(), accuracy))
+            print("Iteration: {}. Loss: {}. Accuracy: {}.".format(iter_num, loss.item(), accuracy))
