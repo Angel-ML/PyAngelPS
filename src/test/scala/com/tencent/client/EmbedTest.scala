@@ -2,7 +2,7 @@ package com.tencent.client
 
 import com.tencent.client.common.protos.AsyncModel
 import com.tencent.client.master.Master
-import com.tencent.client.worker.protos.Worker
+import com.tencent.client.worker.Worker
 import org.scalatest.FunSuite
 
 class EmbedTest extends FunSuite {

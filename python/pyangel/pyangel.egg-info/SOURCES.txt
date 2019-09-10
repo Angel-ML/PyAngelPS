@@ -1,0 +1,6 @@
+setup.py
+pyangel.egg-info/PKG-INFO
+pyangel.egg-info/SOURCES.txt
+pyangel.egg-info/dependency_links.txt
+pyangel.egg-info/requires.txt
+pyangel.egg-info/top_level.txt

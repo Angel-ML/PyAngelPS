@@ -81,7 +81,6 @@ class PlasmaClient private(storeSocketName: String, managerSocketName: String, r
 
     val dataBuf = bufs(0)(0)
     val metaBuf = bufs(0)(1)
-
     Deserializer.matrixFromBuffer(dataBuf, meta)
   }
 
@@ -125,23 +124,36 @@ class PlasmaClient private(storeSocketName: String, managerSocketName: String, r
 
 object PlasmaClient {
   private val logger = Logger.getLogger(PlasmaClient.getClass.getSimpleName)
+  logger.info("begin to load plasma_java, please make sure plasma_java in java.library.path ")
+  PlasmaClient.load()
+  logger.info("load plasma_java success!")
 
   val Plasma_Store_Path = "plasma.store.path"
   val Plasma_Store_Suffix = "plasma.store.suffix"
   val Plasma_Store_MemoryGB = "plasma.store.memoryGB"
+  var plasmaName: String = _
 
   private val rand = new Random()
   private var storeProcess: Process = _
-  private var plasmaName: String = _
   private val clientPool = new ConcurrentLinkedQueue[PlasmaClient]()
 
   private val shutdownHookManager = ShutdownHookManager.get()
   private var stopPlasmaHookTask: Runnable = _
 
-  def getObjectId(matId: Int, epoch: Int, batch: Int): Array[Byte] = {
+  def loadedLibs: String = {
+    val libs = classOf[ClassLoader].getDeclaredField("loadedLibraryNames")
+    libs.setAccessible(true)
+    import scala.collection.JavaConverters._
+    libs.get(ClassLoader.getSystemClassLoader())
+      .asInstanceOf[java.util.Vector[String]]
+      .asScala.mkString(";")
+  }
+
+  def getObjectId(taskId: Long, matId: Int, epoch: Int, batch: Int): Array[Byte] = {
     val bytes = new Array[Byte](20)
     val buf = ByteBuffer.wrap(bytes)
 
+    buf.putLong(taskId)
     buf.putInt(matId)
     buf.putInt(epoch)
     buf.putInt(batch)
@@ -165,7 +177,7 @@ object PlasmaClient {
 
     while (i < 5 && !flag) { // retry
       val currentPort: Int = ThreadLocalRandom.current.nextInt(0, 10000)
-      plasmaName = s"$storeSuffix" //$currentPort"
+      plasmaName = s"$storeSuffix$currentPort"
       val cmd: String = s"$plasmaStorePath -m $memoryBytes -s $plasmaName"
       logger.info(cmd)
       val builder = new ProcessBuilder(cmd.split(" ").toList)
@@ -211,9 +223,6 @@ object PlasmaClient {
       logger.info("Start object store success")
 
       // load plasma_java
-      logger.info("begin to load plasma_java, please make sure plasma_java in java.library.path ")
-      PlasmaClient.load()
-      logger.info("load plasma_java success!")
     }
   }
 

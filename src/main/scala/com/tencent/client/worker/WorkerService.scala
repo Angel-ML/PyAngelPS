@@ -24,7 +24,7 @@ import org.apache.hadoop.util.ShutdownHookManager
 
 
 @throws[Exception]
-class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends ClientWorkerGrpc.ClientWorkerImplBase {
+class WorkerService(worker: Worker, masterHost: String, masterPort: Int, workerPort: Int) extends ClientWorkerGrpc.ClientWorkerImplBase {
   private val logger = Logger.getLogger(classOf[Worker].getSimpleName)
   private val taskMap = new ConcurrentHashMap[JLong, Task]()
 
@@ -33,7 +33,7 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
   logger.info("connected to master!")
 
   logger.info("start to registerWorker!")
-  private val workerInfo = masterStub.registerWorker()
+  private val workerInfo = masterStub.registerWorker(workerPort)
   logger.info(s"{workerId: ${workerInfo.workId}, isChief: ${workerInfo.isChief}, asyncModel: ${workerInfo.asyncModel}}")
 
   logger.info("begin to init ClientContext")
@@ -76,6 +76,18 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
   private val memoryGB = workerInfo.conf.get(PlasmaClient.Plasma_Store_MemoryGB).toInt
   PlasmaClient.startObjectStore(plasmaCmd, suffix, memoryGB)
 
+  private val pyUserScript = workerInfo.conf.get(PythonDaemon.Python_Script_Name)
+  private val pyExec = workerInfo.conf.get(PythonDaemon.Python_Exec_Path)
+
+  PythonDaemon.startDaemon(pyExec, workerPort, pyUserScript, PlasmaClient.plasmaName)
+  PythonDaemon.createPythonProcess()
+
+
+  def stop(): Unit ={
+    PythonDaemon.close()
+    clientContext.stopPSAgent()
+    clientContext.stopAngel()
+  }
 
   private def getTask(taskId: Long) = {
     if (!taskMap.containsKey(taskId)) {
@@ -314,11 +326,10 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
       val tsLike = task.get(matId)
 
       val objectId = request.getObjectId
-      val resObjId = PlasmaClient.getObjectId(matId, epoch, batch)
+      val resObjId = PlasmaClient.getObjectId(taskId, matId, epoch, batch)
       if (objectId.size() != 0) {
         val byteBuf = plasma.getBuffer(objectId.toByteArray, 3000)
         val dataHead = DataHead.fromBuffer(byteBuf)
-        logger.info(dataHead.denseDim +","+dataHead.dtype+","+dataHead.length)
         val indices = Deserializer.indicesFromBuffer(byteBuf, dataHead, tsLike.getMeta)
         val pulled = tsLike.pull(epoch, Utils.vector2Matrix(indices))
         plasma.put(resObjId, pulled, tsLike.getMeta)
@@ -340,9 +351,11 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
     } catch {
       case e: Exception =>
         logger.warning(e.getMessage)
+        e.printStackTrace()
         responseObserver.onError(e)
       case ae: AssertionError =>
         logger.warning(ae.getMessage)
+        ae.printStackTrace()
         responseObserver.onError(ae)
     } finally {
       if (plasma != null) {
@@ -375,9 +388,11 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
       responseObserver.onCompleted()
     } catch {
       case e: Exception =>
+        e.printStackTrace()
         logger.warning(e.getMessage)
         responseObserver.onError(e)
       case ae: AssertionError =>
+        ae.printStackTrace()
         logger.warning(ae.getMessage)
         responseObserver.onError(ae)
     } finally {
@@ -410,10 +425,13 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
 
   override def update(request: TensorLike, responseObserver: StreamObserver[VoidResp]): Unit = {
     try {
+      var tmpt = System.currentTimeMillis()
       val taskId = request.getTaskId
       val task = getTask(taskId)
 
       val variable = task.getVariable(request.getMatId)
+      println("get var", System.currentTimeMillis() - tmpt)
+      tmpt = System.currentTimeMillis()
       if (task.isChief) {
         if (!masterContext.isASP) {
           variable.update(masterContext, task.epoch, masterStub.getGlobalBatchSize)
@@ -423,6 +441,7 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
       } else {
         variable.update(workerContext, task.epoch, task.batchSize)
       }
+      println("var update", System.currentTimeMillis() - tmpt)
 
 
       val resp = VoidResp.newBuilder().build()
@@ -431,6 +450,7 @@ class WorkerService(worker: Worker, masterHost: String, masterPort: Int) extends
     } catch {
       case e: Exception =>
         logger.warning(e.getMessage)
+        e.printStackTrace()
         responseObserver.onError(e)
       case ae: AssertionError =>
         logger.warning(ae.getMessage)

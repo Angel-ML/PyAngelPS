@@ -8,7 +8,7 @@ from .serde import _DTYPE_NP_TO_PROTO
 from .client_worker_grpc import ClientWorkerStub
 from .client_worker_pb2 import *
 import threading
-
+import time
 
 def _loop_mgr(loop: asyncio.AbstractEventLoop):
     asyncio.set_event_loop(loop)
@@ -37,6 +37,7 @@ class AngelPs:
         self.key_objectid = {}
         self.key_param = {}
         self.key_grad = {}
+        self.key_indice = {}
         self.keys = set()
 
         self._loop = asyncio.get_event_loop()
@@ -67,21 +68,31 @@ class AngelPs:
         self.keys.add(key)
 
     def create_variable(self, key, shape, dtype, init_params=None, updater_params=None):
+        print('create variable:' + str(dtype) + ' '+ str(_DTYPE_NP_TO_PROTO[dtype]))
+        if len(shape) == 1:
+            shape = (1, *shape)
+        if init_params is None:
+            init_params = {}
+        if updater_params is None:
+            updater_params = {}
 
-        res = asyncio.get_event_loop().run_until_complete(
+        res = asyncio.run_coroutine_threadsafe(
             self.client_worker.CreateVariable(RPCVariable(taskId=self.task_id, name=key, dim=len(shape), shape=shape,
-                                                          dtype=_DTYPE_NP_TO_PROTO[dtype])))
+                                                          dtype=_DTYPE_NP_TO_PROTO[dtype],
+                                                          initializerParams=init_params,
+                                                          updaterParams=updater_params)), self._loop).result()
         if self.task_id == -1:
             self.task_id = res.taskId
         self.key_matid[key] = res.matId
         self.keys.add(key)
 
     def create_embedding(self, key, num_feats, embedding_size, dtype, init_params=None, updater_params=None):
+        print('create embedding:' + str(dtype) + ' '+ str(_DTYPE_NP_TO_PROTO[dtype]))
 
-        res = asyncio.get_event_loop().run_until_complete(
+        res = asyncio.run_coroutine_threadsafe(
             self.client_worker.CreateEmbedding(RPCEmbedding(taskId=self.task_id, name=key, numFeats=num_feats,
                                                             embeddingSize=embedding_size,
-                                                            dtype=_DTYPE_NP_TO_PROTO[dtype])))
+                                                            dtype='lk_'+_DTYPE_NP_TO_PROTO[dtype])), self._loop).result()
         if self.task_id == -1:
             self.task_id = res.taskId
         self.key_matid[key] = res.matId
@@ -93,11 +104,17 @@ class AngelPs:
 
         asyncio.run_coroutine_threadsafe(async_map(self.ainit, keys), self._loop).result()
 
-    def pull(self, keys=None):
+    def pull(self, keys=None, indices=None):
+        tmpt = time.time()
         if keys is None:
             keys = self.keys
 
-        asyncio.run_coroutine_threadsafe(async_map(self.apull, keys), self._loop).result()
+        if indices is None:
+            indices = [None] * len(keys)
+        print('pull 1', time.time() - tmpt, flush=True)
+        tmpt = time.time()
+        asyncio.run_coroutine_threadsafe(async_map(self.apull, zip(keys, indices)), self._loop).result()
+        print('pull 2', time.time() - tmpt, flush=True)
         return list(map(lambda x: self.key_param[x], keys))
 
     def push(self, keys=None, values=None):
@@ -109,7 +126,6 @@ class AngelPs:
                 self.key_objectid[key] = object_id
                 self.key_grad[key] = value
         asyncio.run_coroutine_threadsafe(async_map(self.apush, keys), self._loop).result()
-        self.batch += 1
 
     def load(self, keys, pathes):
         asyncio.run_coroutine_threadsafe(async_map(self.aload, zip(keys,pathes))).result()
@@ -123,26 +139,51 @@ class AngelPs:
 
         asyncio.run_coroutine_threadsafe(async_map(self.aupdate, keys), self._loop).result()
 
-    async def apull(self, key):
+    def sync(self):
+        asyncio.run_coroutine_threadsafe(async_map(self.asyncc, [self.task_id]), self._loop).result()
 
-        res = await self.client_worker.Pull(
-            PullRequest(taskId=self.task_id, matId=self.key_matid[key], epoch=self.epoch, batch=self.batch))
+    async def apull(self, key, indices = None):
+        if indices is not None:
+            self.key_indice[key] = indices
+            object_id = self.data_store.get_rand_id()
+            await self.data_store.aset(object_id, indices, update=False)
+
+            res = await self.client_worker.Pull(
+                PullRequest(taskId=self.task_id, matId=self.key_matid[key], epoch=self.epoch, batch=self.batch,
+                            objectId=object_id.binary()))
+        else:
+            tmpt = time.time()
+            res = await self.client_worker.Pull(
+                PullRequest(taskId=self.task_id, matId=self.key_matid[key], epoch=self.epoch, batch=self.batch))
+            print('apull 1', time.time() - tmpt, flush=True)
 
         object_id = res.objectId
+        tmpt = time.time()
 
-        data = await self.data_store.aget(object_id)
+        data = await self.data_store.aget(object_id, update=True)
+        print('apull 2', time.time() - tmpt, flush=True)
 
         self.key_param[key] = data
 
+    def async_pull(self, key, indices = None):
+        asyncio.run_coroutine_threadsafe(self.apull(key, indices), self._loop)
+
+
     async def apush(self, key):
+        tmpt = time.time()
         object_id = self.key_objectid[key]
         data = self.key_grad[key]
+        if key in self.key_param and len(self.key_param[key]) == 3:
+            data = (self.key_param[key][0], data, self.key_param[key][2])
 
-        await self.data_store.aset(object_id, data)
 
+        await self.data_store.aset(object_id, data, update=True)
+
+        #print('apush data ' + str(time.time() - tmpt))
         await self.client_worker.Push(
             PushRequest(taskId=self.task_id, matId=self.key_matid[key], epoch=self.epoch, batch=self.batch,
                         batchSize=self.batch_size, objectId=object_id.binary()))
+        #print('apush ' + str(time.time() - tmpt))
 
     async def aupdate(self, key):
         matid = self.key_matid[key]
@@ -159,6 +200,9 @@ class AngelPs:
     async def asave(self, key, path):
         matid = self.key_matid[key]
         await self.client_worker.Save(SaveTensorLike(taskId=self.task_id, matId=matid, path=path, formatClassName=""))
+
+    async def asyncc(self, task_id):
+        await self.client_worker.Sync(SyncRequest(taskId=task_id))
 
 
 

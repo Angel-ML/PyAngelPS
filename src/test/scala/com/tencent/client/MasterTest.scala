@@ -35,12 +35,12 @@ class MasterTest extends FunSuite {
   }
 
   test("registerWorker") {
-    master.registerWorker()
+    master.registerWorker(9005)
     master.shutdown()
   }
 
   test("setAngelLocation") {
-    master.registerWorker()
+    master.registerWorker(9005)
     master.setAngelLocation(new Location("localhost", 8981))
     val loc = master.getAngelLocation
     println(loc.toString)

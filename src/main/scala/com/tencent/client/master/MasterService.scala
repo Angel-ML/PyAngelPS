@@ -76,7 +76,7 @@ class MasterService(val numTask: Int, val syncModel: AsyncModel, val conf: util.
         logger.warning(e.getMessage)
         responseObserver.onError(e)
       case ae: AssertionError =>
-        logger.warning(ae.getMessage)
+        ae.printStackTrace()
         responseObserver.onError(ae)
     }
   }
@@ -302,6 +302,7 @@ class MasterService(val numTask: Int, val syncModel: AsyncModel, val conf: util.
         logger.warning(e.getMessage)
         responseObserver.onError(e)
       case ae: AssertionError =>
+        ae.printStackTrace()
         logger.warning(ae.getMessage)
         responseObserver.onError(ae)
     }
@@ -318,7 +319,7 @@ class MasterService(val numTask: Int, val syncModel: AsyncModel, val conf: util.
           while (iter.hasNext) {
             val entry = iter.next()
             val workId = entry.getKey
-            if (entry.getValue + timeOut > System.currentTimeMillis()) { // timeout
+            if (entry.getValue + timeOut * 2 < System.currentTimeMillis()) { // timeout
               // remove worker, and task in that worker
               MasterService.this.synchronized {
                 val taskIdsNeed2Removed = new mutable.ListBuffer[Long]()
@@ -344,6 +345,7 @@ class MasterService(val numTask: Int, val syncModel: AsyncModel, val conf: util.
 
                 // 3. remove workId in activeWorker
                 activeWorker.remove(workId)
+                logger.info("remove worker : "+workId)
                 currentWorkerCmds.remove(workId)
 
                 // 4. remove workId in workerHeartBeat

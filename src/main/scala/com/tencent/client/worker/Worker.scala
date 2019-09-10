@@ -1,23 +1,24 @@
-package com.tencent.client.worker.protos
+package com.tencent.client.worker
 
 import java.io.IOException
 import java.util.concurrent.Executors
 import java.util.logging.Logger
 
+import com.tencent.client.common.PythonDaemon
 import com.tencent.client.worker.WorkerService
 import io.grpc.ServerBuilder
 
-class Worker(val masterHost: String, val masterPort: Int, val workerPost: Int) {
+class Worker(val masterHost: String, val masterPort: Int, val workerPort: Int) {
   private val logger = Logger.getLogger(classOf[Worker].getSimpleName)
 
-  private val serverBuilder = ServerBuilder.forPort(workerPost)
-  private val masterService = new WorkerService(this, masterHost, masterPort)
+  private val serverBuilder = ServerBuilder.forPort(workerPort)
+  private val masterService = new WorkerService(this, masterHost, masterPort, workerPort)
   private val server = serverBuilder.addService(masterService).build
 
   @throws[IOException]
   def start(): Unit = {
     server.start
-    logger.info("Server started, listening on " + workerPost)
+    logger.info("Server started, listening on " + workerPort)
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = { // Use stderr here since the logger may have been reset by its JVM shutdown hook.
         System.err.println("*** shutting down gRPC server since JVM is shutting down")
@@ -29,6 +30,7 @@ class Worker(val masterHost: String, val masterPort: Int, val workerPost: Int) {
 
   def stop(): Unit = {
     if (server != null) server.shutdown
+    masterService.stop()
   }
 
   @throws[InterruptedException]
@@ -61,7 +63,7 @@ object Worker {
     start("localhost", 8980, 9005)
   }
 
-  private def start(masterHost: String, masterPort: Int, workerPort: Int): Unit = {
+  def start(masterHost: String, masterPort: Int, workerPort: Int): Unit = {
     try {
       server = new Worker(masterHost, masterPort, workerPort)
       server.start()

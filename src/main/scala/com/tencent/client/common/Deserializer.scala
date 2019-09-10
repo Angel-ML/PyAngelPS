@@ -35,9 +35,8 @@ object Deserializer {
 
   def matrixFromBuffer(buf: ByteBuffer, meta: Meta): Matrix = {
     val dataHead = DataHead.fromBuffer(buf)
-    println(dataHead.denseDim, dataHead.dtype, dataHead.length, dataHead.shape)
     if (dataHead.shape.length >= 2) {
-      assert(util.Arrays.equals(meta.shape, dataHead.shape))
+      //assert(util.Arrays.equals(meta.shape, dataHead.shape))
       assert(checkValueType(dataHead, meta))
 
       if (dataHead.sparseDim == 1 && dataHead.denseDim >= 1) { // sparse (the first dim is sparse)
@@ -69,6 +68,8 @@ object Deserializer {
       val row = new Array[Float](dim)
       var i = 0
       while (i < dim) {
+        if (valBuf.limit() - valBuf.position() <= 4)
+          //println(i,dim,valBuf.position(),valBuf.limit(),rowId,dataHead.nnz,dataHead.length)
         row(i) = valBuf.getFloat()
         i += 1
       }
@@ -195,13 +196,16 @@ object Deserializer {
       count
     }
 
-    val bytes = buf.array()
     var start: Int = buf.position()
-    val rowBuf = ByteBuffer.wrap(bytes, start, dataHead.nnz * 8)
+    buf.limit(start + dataHead.nnz * 8)
+    val rowBuf = buf.slice()
     rowBuf.order(ByteOrder.LITTLE_ENDIAN)
-    start += dataHead.nnz * 8
 
-    val valBuf = ByteBuffer.wrap(bytes, start, bytes.length - start)
+    start += dataHead.nnz * 8
+    buf.position(start)
+    buf.limit(buf.capacity())
+
+    val valBuf = buf.slice()
     valBuf.order(ByteOrder.LITTLE_ENDIAN)
 
     val vectors: Array[Vector] = (0 until dataHead.nnz).toArray.map { _ =>
@@ -263,8 +267,8 @@ object Deserializer {
 
     val matrixId = meta.getMatrixContext.getMatrixId
 
-    val rows = dataHead.shape(0).toInt
-    val cols = dataHead.nnz / dataHead.shape(0).toInt
+    val rows = 1
+    val cols = dataHead.nnz
 
     val oldOrder = buf.order()
     buf.order(ByteOrder.LITTLE_ENDIAN)
@@ -305,7 +309,6 @@ object Deserializer {
         throw new Exception("sparseDim or denseDim is invalidate!")
       }
     } else {
-      println(dataHead.shape.length)
       null
     }
   }
@@ -374,13 +377,15 @@ object Deserializer {
   def indicesFromBuffer(buf: ByteBuffer, dataHead: DataHead, meta: Meta): Vector = {
     assert(meta.getMatrixContext.getRowType.isSparse)
 
-    val bytes = buf.array()
     var start = buf.position()
     val idxBuf = if (dataHead.sparseDim == 1) {
-      ByteBuffer.wrap(bytes, start, dataHead.nnz * 8)
+      buf.limit(start + dataHead.nnz * 8)
+      buf
     } else if (dataHead.sparseDim == 2) {
       start += dataHead.nnz * 8
-      ByteBuffer.wrap(bytes, start, dataHead.nnz * 8)
+      buf.position(start)
+      buf.limit(start + dataHead.nnz * 8)
+      buf
     } else {
       throw new Exception("indicesFromBuffer not supported!")
     }

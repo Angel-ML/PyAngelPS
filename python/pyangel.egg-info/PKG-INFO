@@ -1,0 +1,18 @@
+Metadata-Version: 2.1
+Name: pyangel
+Version: 1.0.0
+Summary: angel+ps
+Home-page: https://github.com
+Author: pyangel authors
+License: Apache 2.0
+Description: UNKNOWN
+Keywords: parameter server,machine learning,ai
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Topic :: Software Development :: Libraries
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Description-Content-Type: text/markdown

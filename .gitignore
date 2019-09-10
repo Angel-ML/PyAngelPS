@@ -1,6 +1,6 @@
 *.class
 *.log
-
-.idea
+*.iml
+.idea/
 target
 *.pyc
