@@ -107,14 +107,14 @@ class DataHead:
             self.data = data
 
         elif isinstance(data, tuple):
-            self.sparse_dim = 1
             indices, values, valid_idxs = data
             if len(indices.shape) == 1:
-                if values.shape == (1,) and np.all(values == 1):
+                self.sparse_dim = 1
+                if values is None or (len(values.shape) == 1 and np.all(values == 1)):
                     self.dense_dim = -1
                     self.raw_shape = list(valid_idxs)
                     self.length = indices.data.nbytes
-                elif values.shape == (1,):
+                elif len(values.shape) == 1:
                     self.dense_dim = 0
                     self.raw_shape = list(valid_idxs)
                     self.length = indices.data.nbytes + values.data.nbytes
@@ -125,8 +125,8 @@ class DataHead:
                     self.length = indices.data.nbytes + values.data.nbytes
                 for i in range(len(self.raw_shape), 8):
                     self.raw_shape.append(0)
-                self.nnz = values.size
-                self.raw_dtype = _DTYPE_NP_TO_JVM[values.dtype]
+                self.nnz = indices.size
+                self.raw_dtype = _DTYPE_NP_TO_JVM[values.dtype] if values is not None else _DTYPE_NP_TO_JVM[np.dtype("int64")]
             else:
                 self.dense_dim = 0
                 self.sparse_dim = 2
@@ -158,13 +158,13 @@ class DataHead:
         if self.sparse_dim < 0:
             data_buffer = memoryview(data.data).cast("b", shape=(data.data.nbytes,))
             buffer[DataHeadLen:] = memoryview(data_buffer)
-        elif self.sparse_dim == 1 and self.dense_dim == 0:
-            indices = data[0]
+        elif self.sparse_dim == 1 and self.dense_dim ==-1:
+            indices = np.ascontiguousarray(data[0])
             data_buffer = memoryview(indices.data).cast("b", shape=(indices.data.nbytes,))
             buffer[DataHeadLen:] = memoryview(data_buffer)
-        elif self.sparse_dim == 1 and self.dense_dim >= 1:
+        elif self.sparse_dim == 1 and self.dense_dim >= 0:
             offset = DataHeadLen
-            indices = data[0]
+            indices = np.ascontiguousarray(data[0])
             data_buffer = memoryview(indices.data).cast("b", shape=(indices.data.nbytes,))
             buffer[offset:offset + self.nnz*8] = memoryview(data_buffer)
             offset += self.nnz * 8
@@ -173,7 +173,7 @@ class DataHead:
             buffer[offset:] = memoryview(data_buffer)
         elif self.sparse_dim == 2 and self.dense_dim == 0:
             offset = DataHeadLen
-            indices = data[0]
+            indices = np.ascontiguousarray(data[0])
             data_buffer = memoryview(indices.data).cast("b", shape=(indices.data.nbytes,))
             buffer[offset:offset + self.nnz*8] = memoryview(data_buffer)
             offset += self.nnz * 8
@@ -206,8 +206,9 @@ class DataHead:
             offset = 0
             indices = np.frombuffer(buffer[offset:offset + self.nnz * 8], dtype=np.int64).reshape(self.nnz)
             new_shape = (self.nnz, *(self.shape[1:]))
+            offset += self.nnz * 8
             values = np.frombuffer(buffer[offset:], dtype=_DTYPE_JVM_TO_NP[self.raw_dtype]).reshape(new_shape)
-            return indices, values, self.shape[0]
+            return indices, values, (self.shape[0],)
         elif self.sparse_dim == 2 and self.dense_dim == 0:
             offset = 0
             row = np.frombuffer(buffer[offset:offset + self.nnz * 8], dtype=np.int64).reshape(self.nnz)

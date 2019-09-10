@@ -90,7 +90,7 @@ object Serializer {
             if (isRowDense && isColDense) {
               nnz * 4
             } else if (!isRowDense && isColDense) {
-              mat.getNumRows * 8 + nnz * 4
+              (mat.getNumRows * mat.getRow(0).dim() * 4 + nnz * 8).toInt
             } else {
               nnz * 20
             }
@@ -104,7 +104,7 @@ object Serializer {
             }
         }
 
-        new DataHead(sparseDim, denseDim, meta.shape, nnz, dtype, length)
+        new DataHead(sparseDim, denseDim, meta.shape.reverse, nnz, dtype, length)
       case _ => throw new Exception("matrix type is not supported!")
     }
   }
@@ -462,7 +462,7 @@ object Serializer {
     vec match {
       case v: IntDoubleVector =>
         println("WO JIAN LE GUI?")
-        v.getStorage.getValues.foreach(value => { println(value); buf.putDouble(value)})
+        v.getStorage.getValues.foreach(value => buf.putDouble(value))
       case v: IntFloatVector =>
         v.getStorage.getValues.foreach(value => buf.putFloat(value))
       case v: IntLongVector =>

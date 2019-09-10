@@ -68,7 +68,8 @@ class Embedding(name: String,
       case v: IntDummyVector =>
         v.getIndices.map { idx => embeddings.get(idx.toLong) }
       case v: IntLongVector if v.isDense =>
-        v.getStorage.getValues.map { idx => embeddings.get(idx) }
+        v.getStorage.getValues.map { idx => {embeddings.get(idx).setRowId(idx.toInt)
+          embeddings.get(idx)} }
       case v: LongDummyVector =>
         v.getIndices.map { idx => embeddings.get(idx) }
     }

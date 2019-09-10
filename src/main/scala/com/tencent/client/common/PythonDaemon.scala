@@ -39,10 +39,10 @@ object PythonDaemon {
         procOutput.put(in)
       },
       out => {
-        scala.io.Source.fromInputStream(out).getLines().foreach(logger.info(_))
+        scala.io.Source.fromInputStream(out).getLines().foreach(println(_))
       },
       err => {
-        scala.io.Source.fromInputStream(err).getLines().foreach(logger.info(_))
+        scala.io.Source.fromInputStream(err).getLines().foreach(_.length)
       },
       true
     )
@@ -55,6 +55,10 @@ object PythonDaemon {
     procOutput.get.write("\n".getBytes)
     procOutput.get.flush()
     println("write finish")
+  }
+
+  def close(): Unit = {
+    storeProcess.destroy()
   }
 
   def main(args: Array[String]): Unit = {

@@ -1,11 +1,13 @@
 import pyarrow.plasma as plasma
 import pyarrow
 from .serde import DataHead
+import functools
 import concurrent.futures
+import time
 
-data_head = DataHead()
+#data_head = DataHead()
 
-def _set_data():
+def _set_data(data_head):
     data_head.write_to_buffer()
 
 
@@ -26,14 +28,15 @@ class DataStore:
             object_id = plasma.ObjectID(object_id)
         buffer = self.plasma_client.get_buffers([object_id])[0]
         buffer = memoryview(buffer)
-        # data_head = DataHead()
+        data_head = DataHead()
         data_head.from_buffer(buffer, update)
         return data_head.parse_data()
 
     async def aset(self, object_id, data, update=False):
+        tmpt = time.time()
         if not isinstance(object_id, pyarrow._plasma.ObjectID):
             object_id = plasma.ObjectID(object_id)
-        # data_head = DataHead()
+        data_head = DataHead()
         data_head.from_data(data, update)
 
         object_size = data_head.nbytes
@@ -42,8 +45,8 @@ class DataStore:
         buffer = memoryview(buffer)
         data_head.buffer = buffer  # maybe
 
-        with concurrent.futures.ProcessPoolExecutor() as pool:
-            await self._loop.run_in_executor(pool, _set_data)
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            await self._loop.run_in_executor(pool, functools.partial(_set_data, data_head))
         self.plasma_client.seal(object_id)
 
     def get_all(self, object_ids, update = False):

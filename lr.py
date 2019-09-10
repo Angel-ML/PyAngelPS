@@ -5,6 +5,8 @@ import torchvision.datasets as dsets
 import numpy as np
 
 from torch.optim.optimizer import Optimizer, required
+import torch.nn.functional as F
+import time
 
 
 hhh = {}
@@ -70,15 +72,19 @@ class LogisticRegression(torch.nn.Module):
         self.linear = torch.nn.Linear(input_dim, output_dim)
 
     def forward(self, x):
+        #outputs = F.softmax(self.linear(x), dim = 1)
         outputs = self.linear(x)
         return outputs
 
 
+#model = torch.jit.script(LogisticRegression(input_dim, output_dim))
 model = LogisticRegression(input_dim, output_dim)
-
+#torch.jit.save(model,'lr.ndl')
+#model = torch.jit.load('lr.ndl')
 criterion = torch.nn.CrossEntropyLoss() # computes softmax and then the cross entropy
+#criterion = torch.jit.script(torch.nn.CrossEntropyLoss()) # computes softmax and then the cross entropy
 
-optimizer = SGD(model.parameters(), lr=lr_rate)
+optimizer = torch.optim.Adam(model.parameters(), lr=lr_rate)
 
 for param in model.parameters():
     print(param.size())
@@ -87,27 +93,34 @@ for name, param in model.named_parameters():
     print(param.size())
 
 iter_num = 0
-
+start_time = time.time()
+b = 0
 for epoch in range(int(epochs)):
     for i, (images, labels) in enumerate(train_loader):
         images = Variable(images.view(-1, 28 * 28))
         labels = Variable(labels)
 
         optimizer.zero_grad()
+        a = time.time()
         outputs = model(images)
         loss = criterion(outputs, labels)
         loss.backward()
+        b += time.time() - a
         optimizer.step()
 
         iter_num+=1
-        if iter_num%50==0:
+        if iter_num%500==0:
             # calculate Accuracy
+            print(time.time() - start_time)
+            print('model: ',b)
+            start_time = time.time()
             correct = 0
             total = 0
             for images, labels in test_loader:
                 images = Variable(images.view(-1, 28*28))
                 outputs = model(images)
-                _, predicted = torch.max(outputs.data, 1)
+                tmp, predicted = torch.max(outputs.data, 1)
+                print(tmp,predicted)
                 total+= labels.size(0)
                 # for gpu, bring the predicted and labels back to cpu fro python operations to work
                 correct+= (predicted == labels).sum()

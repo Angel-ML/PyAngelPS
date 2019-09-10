@@ -20,11 +20,11 @@ class MStub(host: String, port: Int) {
   var workId: Long = 0
 
   @throws[Exception]
-  def registerWorker(): WorkerInfo = synchronized {
+  def registerWorker(workerPort: Int): WorkerInfo = synchronized {
     val host = InetAddress.getLocalHost.getHostAddress
     val registerWorkerReq = RegisterWorkerReq.newBuilder()
       .setHost(host)
-      .setPort(port)
+      .setPort(workerPort)
       .build()
     val resp = blockingStub.registerWorker(registerWorkerReq)
     if (resp.getRet == 0) {

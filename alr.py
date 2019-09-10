@@ -9,9 +9,21 @@ from pyangel import angelps
 import grpc
 from torch.optim.optimizer import Optimizer, required
 
+import sys
+import argparse
+import subprocess
+import numpy as np
 
-os.environ['jvm_port']='9005'
-os.environ['plasma_name']='/tmp/plasma'
+
+def cp_from_hdfs(src, dst):
+    #if dst.endswith('/'):
+    #    subprocess.check_output(['hadoop','fs','-getmerge',src,dst])
+    #else:
+    subprocess.check_output(['hadoop', 'fs', '-get', src, dst])
+
+
+#os.environ['jvm_port']='9005'
+#os.environ['plasma_name']='/tmp/plasma'
 ps = angelps.AngelPs()
 ps.batch_size = 32
 #hhh = {}
@@ -39,7 +51,7 @@ class SGD(Optimizer):
                     p.grad.zero_()
                     key = hhh_key[p]
                     data = ps.pull([key])[0]
-                    p.data = torch.from_numpy(data)
+                    p.data.data = torch.from_numpy(data)
 
     def step(self, closure=None):
         loss = None
@@ -96,8 +108,6 @@ criterion = torch.nn.CrossEntropyLoss() # computes softmax and then the cross en
 
 optimizer = SGD(model.parameters(), lr=lr_rate)
 
-for param in model.parameters():
-    print(param.size())
 for name, param in model.named_parameters():
     print(name)
     print(param.size())

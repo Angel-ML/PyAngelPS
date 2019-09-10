@@ -63,13 +63,13 @@ object Master {
       "angel.ps.total.cores" -> "1",
       "angel.ps.cpu.vcores" -> "1",
       "angel.ps.log.level" -> "DEBUG",
-      "angel.log.path" -> "file:///home/fitz/dev/sona/log",
-      "angel.save.model.path" -> "file:///home/fitz/dev/sona/model",
-      "plasma.store.path" -> "/home/fitz/working/arrow/plasma_store_server",
+      "angel.log.path" -> "file:///home/uuirs/dev/sona/log",
+      "angel.save.model.path" -> "file:///home/uuirs/dev/sona/model",
+      "plasma.store.path" -> "/home/uuirs/anaconda3/envs/plasma_java/bin/plasma_store_server",
       "plasma.store.suffix" -> "/tmp/plasma",
       "plasma.store.memoryGB" -> "1",
-      "python.script.name" -> "test.py",
-      "python.exec.path" -> "/home/uuirs/anaconda3/envs/tf/bin/python"
+      "python.script.name" -> "train.py",
+      "python.exec.path" -> "/home/uuirs/anaconda3/envs/torch/bin/python"
     )
 
     start(8980, 5, AsyncModel.BSP, conf)
@@ -91,10 +91,8 @@ object Master {
     while (iter.hasNext) {
       val entry = iter.next()
       val key = entry.getKey
-      if (key.contains("angel.") || key.contains("plasma.") ||
-        key.contains("python.") || key.contains("ml.")) {
-        confMap.put(key, entry.getValue)
-      }
+      println("conf",key,entry.getValue)
+      confMap.put(key, entry.getValue)
     }
 
     if (server == null) {
@@ -127,6 +125,5 @@ object Master {
       }
     }
 
->>>>>>> 44ce6fe169f4a82630f7a846fb45648904093862
   }
 }

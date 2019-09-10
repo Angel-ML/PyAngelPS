@@ -23,6 +23,7 @@ class Variable(name: String, dim: Int, shape: Array[Long], dtype: String, validI
   override def getMeta: VariableMeta = meta
 
   protected def doPull(epoch: Int, idxs: Matrix): Matrix = {
+    var tmpt = System.currentTimeMillis()
     var indices: Vector = null
     if (idxs != null) {
       indices = idxs.getRow(0)
@@ -30,6 +31,7 @@ class Variable(name: String, dim: Int, shape: Array[Long], dtype: String, validI
     val originRows = meta.getMatrixContext.getRowNum / (meta.numSlot + 1)
     val rowIds = (0 until originRows).toArray
 
+    tmpt = System.currentTimeMillis()
     val pulled = if (epoch == 0 && indices != null) {
       val func = initializer.getInitFunc(matClient.getMatrixId, meta)
       indices match {
@@ -58,6 +60,7 @@ class Variable(name: String, dim: Int, shape: Array[Long], dtype: String, validI
         matClient.getRows(rowIds, true)
       }
     }
+    println("matclient get rows",System.currentTimeMillis() - tmpt)
 
     Utils.vectorArray2Matrix(pulled)
   }
